@@ -26,7 +26,10 @@ def load_graph(path: str) -> dict:
     if not p.exists():
         return _empty_graph()
     with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return _empty_graph()
 
 
 def save_graph(graph: dict, path: str) -> None:
@@ -67,8 +70,8 @@ def add_edge(
     source_id: str,
     target_id: str,
     relation: str,
-    weight: float = 1.0,
 ) -> None:
+    # Self-loops and duplicate (source, target, relation) triples are dropped.
     if source_id == target_id:
         return
     for edge in graph["edges"]:
@@ -85,7 +88,6 @@ def add_edge(
             "source": source_id,
             "target": target_id,
             "relation": relation,
-            "weight": weight,
             "created_at": now,
         }
     )
