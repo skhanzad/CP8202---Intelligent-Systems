@@ -7,7 +7,7 @@ This project extends RAG with a **knowledge-graph-based memory system** that mai
 A **forgetting module** runs periodically to prune low-importance nodes, preventing the graph from growing unboundedly and keeping retrieval focused on what is most relevant.
 
 The system is built in Python using **LangGraph** for the main flow, **Gemma2 via Ollama** as the LLM, and **nomic-embed-text via Ollama** for embeddings. Evaluation is performed on the **LoCoMo** benchmark.
-# KG-RAG Setup Guide
+
 
 ## Prerequisites
 
