@@ -71,7 +71,6 @@ def add_edge(
     target_id: str,
     relation: str,
 ) -> None:
-    # Self-loops and duplicate (source, target, relation) triples are dropped.
     if source_id == target_id:
         return
     for edge in graph["edges"]:

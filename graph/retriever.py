@@ -10,7 +10,6 @@ SUBGRAPH_MAX_NODES = 15
 def find_entry_nodes(
     graph: dict, query_embedding: list[float], k: int = 3
 ) -> list[str]:
-    """Return up to k node IDs with highest cosine similarity to query_embedding."""
     scores: list[tuple[float, str]] = []
     for node_id, node in graph["nodes"].items():
         emb = node.get("embedding")
@@ -22,7 +21,6 @@ def find_entry_nodes(
 
 
 def find_entry_node(graph: dict, query_embedding: list[float]) -> str | None:
-    """Return the node ID with highest cosine similarity to query_embedding."""
     results = find_entry_nodes(graph, query_embedding, k=1)
     return results[0] if results else None
 
@@ -33,11 +31,9 @@ def extract_subgraph(
     hops: int = SUBGRAPH_MAX_HOPS,
     max_nodes: int = SUBGRAPH_MAX_NODES,
 ) -> dict:
-    """BFS from one or more entry nodes up to `hops` hops; cap at max_nodes by importance score."""
     nodes = graph["nodes"]
     edges = graph["edges"]
 
-    # Normalise to list
     if isinstance(entry_node_ids, str):
         seeds = [entry_node_ids]
     else:
@@ -46,7 +42,6 @@ def extract_subgraph(
     if not seeds:
         return {"nodes": {}, "edges": []}
 
-    # Build adjacency: node_id -> set of neighbour node_ids
     adjacency: dict[str, set[str]] = {nid: set() for nid in nodes}
     for edge in edges:
         src, tgt = edge["source"], edge["target"]
@@ -55,7 +50,6 @@ def extract_subgraph(
         if tgt in adjacency:
             adjacency[tgt].add(src)
 
-    # BFS seeded from all entry nodes simultaneously (each starts at hop 0)
     visited: dict[str, int] = {nid: 0 for nid in seeds}
     queue: deque[str] = deque(seeds)
     while queue:
@@ -70,11 +64,7 @@ def extract_subgraph(
 
     collected_ids = list(visited.keys())
 
-    # Cap by type then importance score if over limit.
-    # Episodic nodes are sorted before semantic ones so event facts (dates,
-    # activities) are not displaced by frequently-accessed entity nodes when
-    # the subgraph is trimmed. Within each type, importance score is the
-    # tiebreaker.
+
     if len(collected_ids) > max_nodes:
         collected_ids.sort(
             key=lambda nid: (
@@ -86,7 +76,6 @@ def extract_subgraph(
 
     kept_set = set(collected_ids)
 
-    # Collect only edges where both endpoints are in the kept set
     kept_edges = [
         e for e in edges if e["source"] in kept_set and e["target"] in kept_set
     ]
@@ -98,12 +87,6 @@ def extract_subgraph(
 
 
 def _format_attr_value(value: object) -> str:
-    """Return a human-readable string for a node attribute value.
-
-    ISO datetime strings (e.g. "2023-05-07T10:00:00+00:00") are converted to
-    "7 May 2023" so the LLM can match them against natural-language date answers
-    without needing to do calendar arithmetic on raw ISO strings.
-    """
     s = str(value)
     for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
         try:
@@ -115,7 +98,6 @@ def _format_attr_value(value: object) -> str:
 
 
 def format_subgraph_for_prompt(subgraph: dict) -> str:
-    """Serialise a subgraph into a readable string for LLM context injection."""
     lines: list[str] = ["[Knowledge Graph Context]"]
 
     for node in subgraph["nodes"].values():

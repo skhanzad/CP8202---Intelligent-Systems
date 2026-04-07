@@ -14,11 +14,11 @@ LLM_MODEL = "gemma2"
 
 
 class GraphState(TypedDict):
-    user_input: str            # Raw user message for this turn
-    retrieved_subgraph: dict   # Subgraph retrieved for this turn
-    llm_response: str          # Generated response
-    extracted_nodes: dict      # label -> node_id mapping from extraction
-    kg_path: str               # Path to graph.json
+    user_input: str
+    retrieved_subgraph: dict
+    llm_response: str
+    extracted_nodes: dict
+    kg_path: str
 
 
 def retrieve_node(state: GraphState) -> dict:

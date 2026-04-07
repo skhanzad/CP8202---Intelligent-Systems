@@ -236,11 +236,6 @@ Output schema: {"<new_label>": "<matched_existing_label_or_null>", ...}"""
 
 
 def _resolve_aliases(new_labels: list[str], existing_labels: list[str]) -> dict[str, str | None]:
-    """Call Gemma2 to match new labels to existing ones, handling abbreviations and aliases.
-
-    Returns {new_label: matched_existing_label_or_None}.
-    Returns an empty dict on failure (safe fallback — dedup continues via Stage 1/2).
-    """
     if not new_labels or not existing_labels:
         return {}
     payload = {
@@ -266,7 +261,6 @@ def _resolve_aliases(new_labels: list[str], existing_labels: list[str]) -> dict[
         response.raise_for_status()
         raw = response.json()["message"]["content"]
         result = json.loads(_strip_fences(raw))
-        # Normalise: only keep entries where match is a known existing label
         existing_lower = {l.lower(): l for l in existing_labels}
         resolved: dict[str, str | None] = {}
         for new_label, match in result.items():
@@ -284,23 +278,8 @@ def _resolve_aliases(new_labels: list[str], existing_labels: list[str]) -> dict[
 def merge_extraction_into_graph(
     graph: dict, extraction: dict, user_input: str = "", skip_aliases: bool = False
 ) -> dict:
-    """
-    Merge extracted nodes and edges into the graph in-place.
-
-    For each extracted node:
-      Stage 0 — LLM alias resolution: match new labels to existing ones,
-                 handling abbreviations, acronyms, and alternate forms.
-      Stage 1 — exact label match (case-insensitive): merge if found.
-      Stage 2 — embedding similarity: embed label+sentence context, compare
-                 against all stored embeddings; if max similarity >
-                 EMBED_SIM_THRESHOLD → merge, otherwise create a new node.
-
-    Edges are added between the resolved node IDs.
-    Returns a mapping {extracted_label: resolved_node_id}.
-    """
     label_to_id: dict[str, str] = {}
 
-    # Pre-collect all existing embeddings once to avoid re-fetching per node
     existing_embeddings: list[tuple[str, list[float]]] = [
         (node_id, node["embedding"])
         for node_id, node in graph["nodes"].items()
@@ -334,11 +313,6 @@ def merge_extraction_into_graph(
             continue
 
         # Stage 2 — embedding similarity with sentence context.
-        # Embedding just the label gives near-identical vectors for all short
-        # strings in nomic-embed-text. Appending the originating sentence makes
-        # the vectors context-specific, allowing the model to distinguish e.g.
-        # 'Pinecone' (vector DB) from 'Pinecone' (tree cone) and 'Queen Street'
-        # from 'Software Engineer' even though bare labels would score 1.0.
         embed_text = _node_text(label, attributes, user_input)
         label_embedding = get_embedding(embed_text)
         best_id: str | None = None
@@ -355,11 +329,6 @@ def merge_extraction_into_graph(
         else:
             new_id = add_node(graph, label, ntype, attributes, label_embedding)
             label_to_id[label] = new_id
-            # Do NOT add new_id to existing_embeddings here. Nodes created in
-            # this batch share the same sentence context, so their embeddings
-            # are artificially close and would false-merge with each other.
-            # Stage 1 (exact label match) already handles within-turn dedup;
-            # Stage 2 is cross-turn only.
 
     for edge_spec in extraction.get("edges", []):
         src_label: str = edge_spec["source"]
