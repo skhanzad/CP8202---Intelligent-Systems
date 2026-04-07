@@ -18,7 +18,6 @@ LOG_PATH = "data/chat_log.json"
 
 
 def _graph_snapshot(graph: dict) -> dict:
-    """Return a compact, serialisable snapshot of the current graph state."""
     node_labels = {nid: n["label"] for nid, n in graph["nodes"].items()}
     return {
         "node_count": len(graph["nodes"]),
